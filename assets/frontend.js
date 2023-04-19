@@ -19,6 +19,7 @@ import "./handler.js"
         ajaxActionName: 'fineuploader_reload',
         ajaxUrl: null,
         errorMessage: '',
+        disableOnCompleteCallback: false,
     };
 
     /**
@@ -106,6 +107,10 @@ import "./handler.js"
 
             // Return if there are still files in progress
             if (this.uploader.fineUploader.getInProgress() > 0) {
+                return;
+            }
+
+            if (this.config.disableOnCompleteCallback) {
                 return;
             }
 
