@@ -74,6 +74,7 @@ class ConfigGenerator
             'maxHeight' => $config->getMaxImageHeight(),
             'uploadButtonTitle' => $config->getUploadButtonTitle(),
             'messages' => $config->getLabels()['messages'] ?? [],
+            'disableOnCompleteCallback' => $config->isOnCompleteCallbackDisabled(),
         ];
 
         // Enable the chunking
@@ -185,6 +186,10 @@ class ConfigGenerator
 
                 case 'debug':
                     $v ? $config->enableDebug() : $config->disableDebug();
+                    break;
+
+                case 'disableOnCompleteCallback':
+                    $v ? $config->disableOnCompleteCallback() : $config->enableOnCompleteCallback();
                     break;
             }
         }

@@ -147,6 +147,13 @@ class UploaderConfig
     private $labels = [];
 
     /**
+     * Disable the onComplete callback
+     *
+     * @var bool
+     */
+    private $disableOnCompleteCallback = false;
+
+    /**
      * Return true if debug mode is enabled.
      *
      * @return bool
@@ -686,6 +693,39 @@ class UploaderConfig
     public function setLabels(array $labels)
     {
         $this->labels = $labels;
+
+        return $this;
+    }
+
+    /**
+     * Return true if the onComplete callback is disabled.
+     * @return bool
+     */
+    public function isOnCompleteCallbackDisabled()
+    {
+        return $this->disableOnCompleteCallback;
+    }
+
+    /**
+     * Disable the onComplete callback.
+     *
+     * @return UploaderConfig
+     */
+    public function disableOnCompleteCallback()
+    {
+        $this->disableOnCompleteCallback = true;
+
+        return $this;
+    }
+
+    /**
+     * Enable the onComplete callback.
+     *
+     * @return UploaderConfig
+     */
+    public function enableOnCompleteCallback()
+    {
+        $this->disableOnCompleteCallback = false;
 
         return $this;
     }
