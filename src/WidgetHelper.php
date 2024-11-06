@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Terminal42\FineUploaderBundle;
 
-use Contao\Controller;
+use Contao\CoreBundle\File\Metadata;
+use Contao\CoreBundle\Image\Studio\Studio;
 use Contao\File;
 use Contao\FilesModel;
 use Contao\Image;
@@ -13,21 +14,20 @@ use Contao\StringUtil;
 use Contao\System;
 use Contao\Template;
 use Contao\Validator;
+use Symfony\Component\Filesystem\Path;
 use Terminal42\FineUploaderBundle\Widget\BaseWidget;
 
 class WidgetHelper
 {
-    /**
-     * @var Filesystem
-     */
-    private $fs;
+    private Filesystem $fs;
+    private Studio $studio;
+    private string $projectDir;
 
-    /**
-     * WidgetHelper constructor.
-     */
-    public function __construct(Filesystem $fs)
+    public function __construct(Filesystem $fs, Studio $studio, string $projectDir)
     {
         $this->fs = $fs;
+        $this->studio = $studio;
+        $this->projectDir = $projectDir;
     }
 
     /**
@@ -82,29 +82,33 @@ class WidgetHelper
 
         // Add the image data
         if ($file->isImage) {
-            $attributes = [
-                'singleSRC' => $file->path,
+            $metaData = new Metadata([
                 'title' => sprintf('%s (%s, %sx%s px)', $file->path, $template->size, $file->width, $file->height),
                 'alt' => $file->name,
-            ];
+            ]);
 
-            // Merge custom image attributes
-            if (null !== $imageAttributes) {
-                $attributes = array_merge($attributes, $imageAttributes);
+            $figure = $this->studio
+                ->createFigureBuilder()
+                ->from($file->path)
+                ->setMetadata($metaData)
+                ->setSize($imageAttributes['size'] ?? null)
+                ->buildIfResourceExists()
+            ;
+
+            if (null !== $figure) {
+                $figure->applyLegacyTemplateData($template);
             }
-
-            Controller::addImageToTemplate($template, $attributes);
         }
     }
 
-    /**
-     * Add the files to the session in order to reproduce Contao uploader behavior.
-     *
-     * @param string $name
+    /** 
+     * Returns an array with all the information per file that Contao expects for the widget's value or the session value.
      */
-    public function addFilesToSession($name, array $files): void
+    public function getFilesArray($name, array $files, ?bool $storeFile = null): array
     {
+        $storeFile = $storeFile ?? true;
         $count = 0;
+        $return = [];
 
         foreach ($files as $filePath) {
             $model = null;
@@ -124,15 +128,37 @@ class WidgetHelper
                 continue;
             }
 
-            $_SESSION['FILES'][$name.'_'.$count++] = [
+            $key = $name.'_'.$count++;
+
+            $return[$key] = [
                 'name' => $file->name,
                 'type' => $file->mime,
-                'tmp_name' => TL_ROOT.'/'.$file->path,
+                'tmp_name' => Path::join($this->projectDir, $file->path),
                 'error' => 0,
                 'size' => $file->size,
-                'uploaded' => true,
                 'uuid' => null !== $model ? StringUtil::binToUuid($model->uuid) : '',
             ];
+
+            // Only set the 'uploaded' key if we store the file (https://github.com/contao/contao/pull/7039)
+            if ($storeFile) {
+                $return[$key]['uploaded'] = true;
+            }
+        }
+
+        return $return;
+    }
+
+    /**
+     * Add the files to the session in order to reproduce Contao 4.13 uploader behavior.
+     *
+     * @param string $name
+     */
+    public function addFilesToSession($name, array $files, bool $storeFile = true): void
+    {
+        $files = $this->getFilesArray($name, $files, $storeFile);
+
+        foreach ($files as $name => $data) {
+            $_SESSION['FILES'][$name] = $data;
         }
     }
 
@@ -221,8 +247,12 @@ class WidgetHelper
         $files = [];
 
         foreach ($tmpFiles as $file) {
+            if (\is_array($file)) {
+                $file = $file['tmp_name'] ?? null;
+            }
+
             // Skip non existing files
-            if (!$this->fs->fileExists($file)) {
+            if (!$file || !$this->fs->fileExists($file)) {
                 continue;
             }
 

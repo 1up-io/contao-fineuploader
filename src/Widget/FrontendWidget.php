@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Terminal42\FineUploaderBundle\Widget;
 
+use Contao\CoreBundle\ContaoCoreBundle;
 use Contao\CoreBundle\Exception\ResponseException;
 use Contao\FrontendTemplate;
+use Contao\System;
+use Terminal42\FineUploaderBundle\ChunkUploader;
 
 class FrontendWidget extends BaseWidget
 {
@@ -44,6 +47,18 @@ class FrontendWidget extends BaseWidget
         }
     }
 
+    public function parse($attributes = null)
+    {
+        // Initiate the session if chunking is enabled (#86).
+        if ($this->getUploaderConfig()->isChunkingEnabled()) {
+            /** @var ChunkUploader $chunkUploader */
+            $chunkUploader = $this->container->get('terminal42_fineuploader.chunk_uploader');
+            $chunkUploader->initSession($this);
+        }
+
+        return parent::parse($attributes);
+    }
+
     /**
      * Get the item template.
      *
@@ -65,16 +80,22 @@ class FrontendWidget extends BaseWidget
     }
 
     /**
-     * Store the file information in the session.
+     * Store the file information in the session to reproduce Contao 4.13 uploader behavior.
      */
     protected function validator($input)
     {
         $return = parent::validator($input);
+        $files = $this->getWidgetHelper()->getFilesArray($this->strName, array_filter((array) $return), $this->storeFile);
 
-        // Add files to the session
-        $this->getWidgetHelper()->addFilesToSession($this->strName, array_filter((array) $return));
+        if (version_compare(ContaoCoreBundle::getVersion(), '5@dev', '<')) {
+            foreach ($files as $name => $data) {
+                $_SESSION['FILES'][$name] = $data;
+            }
 
-        return $return;
+            return $return;
+        }
+
+        return $files;
     }
 
     /**

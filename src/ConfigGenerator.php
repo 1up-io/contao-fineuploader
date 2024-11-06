@@ -7,6 +7,8 @@ namespace Terminal42\FineUploaderBundle;
 use Contao\Config;
 use Contao\FilesModel;
 use Contao\FrontendUser;
+use Contao\StringUtil;
+use Contao\System;
 use Contao\Validator;
 
 class ConfigGenerator
@@ -96,9 +98,7 @@ class ConfigGenerator
                     break;
 
                 case 'useHomeDir':
-                    if ($v && FE_USER_LOGGED_IN) {
-                        $user = FrontendUser::getInstance();
-
+                    if ($v && ($user = System::getContainer()->get('security.helper')->getUser()) instanceof FrontendUser) {
                         if ($user->assignDir && $user->homeDir) {
                             $this->setUploadFolder($config, $user->homeDir);
                         }
@@ -106,7 +106,7 @@ class ConfigGenerator
                     break;
 
                 case 'extensions':
-                    $config->setExtensions(trimsplit(',', $v));
+                    $config->setExtensions(StringUtil::trimsplit(',', $v));
                     break;
 
                 case 'mSize':

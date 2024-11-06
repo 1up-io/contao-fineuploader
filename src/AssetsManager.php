@@ -26,11 +26,11 @@ class AssetsManager
         foreach ($assets as $asset) {
             switch (pathinfo($asset, PATHINFO_EXTENSION)) {
                 case 'css':
-                    $GLOBALS['TL_CSS'][] = $asset;
+                    $GLOBALS['TL_CSS'][] = ltrim($asset, '/');
                     break;
 
                 case 'js':
-                    $GLOBALS['TL_JAVASCRIPT'][] = $asset;
+                    $GLOBALS['TL_JAVASCRIPT'][] = ltrim($asset, '/');
                     break;
             }
         }
@@ -75,7 +75,7 @@ class AssetsManager
 
         // Include the sortable library
         if ($sortable) {
-            $assets[] = $this->packages->getUrl('sortable.js', 'terminal42_fine_uploader');
+            $assets[] = $this->packages->getUrl('Sortable.min.js', 'terminal42_fine_uploader');
         }
 
         return $assets;
